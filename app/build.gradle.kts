@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.androidtrack.app"
-        minSdk = 35  // Android 15
+        minSdk = 35  // Android 15 - requirement specified in project specification
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"

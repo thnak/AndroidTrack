@@ -44,10 +44,11 @@ class SensorViewModel @Inject constructor(
         viewModelScope.launch {
             observeSensorDataUseCase()
                 .collect { sensorData ->
-                    // Keep only the latest reading from each sensor
+                    // Update the list with the latest reading from each sensor type
+                    // Keeps only the most recent 20 sensor readings
                     _sensorDataList.update { currentList ->
                         val filtered = currentList.filter { it.type != sensorData.type }
-                        (filtered + sensorData).takeLast(20) // Keep max 20 sensors
+                        (filtered + sensorData).takeLast(20)
                     }
                     
                     // Publish to MQTT if connected

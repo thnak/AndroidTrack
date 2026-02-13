@@ -67,7 +67,11 @@ class MqttRepository @Inject constructor(
                 config.password?.let { password = it.toCharArray() }
             }
 
-            mqttClient?.connect(options)?.waitForCompletion(5000)
+            try {
+                mqttClient?.connect(options)?.waitForCompletion(5000)
+            } catch (e: MqttException) {
+                throw Exception("Connection timeout or MQTT error: ${e.message}", e)
+            }
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to MQTT broker", e)
@@ -84,7 +88,7 @@ class MqttRepository @Inject constructor(
                 if (client.isConnected) {
                     val message = MqttMessage(payload.toByteArray()).apply {
                         this.qos = qos
-                        isRetained = false
+                        this.isRetained = false
                     }
                     client.publish(topic, message)
                     Log.d(TAG, "Published to $topic: $payload")
