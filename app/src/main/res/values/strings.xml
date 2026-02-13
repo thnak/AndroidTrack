@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">AndroidTrack</string>
+    <string name="sensor_data">Sensor Data</string>
+    <string name="mqtt_status">MQTT Status</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="connecting">Connecting...</string>
+    <string name="sensor_type">Type: %s</string>
+    <string name="sensor_value">Value: %s</string>
+    <string name="no_sensors">No sensors detected</string>
+    <string name="mqtt_broker">Broker: %s</string>
+    <string name="error_mqtt_connection">Failed to connect to MQTT broker</string>
+</resources>
