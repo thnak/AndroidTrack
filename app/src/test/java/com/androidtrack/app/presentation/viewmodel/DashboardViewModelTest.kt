@@ -34,10 +34,11 @@ import org.mockito.kotlin.whenever
  * Unit tests for [DashboardViewModel].
  *
  * DashboardViewModel has an infinite RSSI polling loop (while(isActive) { delay(3_000) }).
- * Tests drive the scheduler via [TestCoroutineScheduler.runCurrent] which only executes tasks
- * at the current virtual timestamp. The loop's next iteration parks at +3 s and is never reached.
- * [runBlocking] is used (instead of [runTest]) so there is no implicit advanceUntilIdle() teardown
- * that would make the scheduler loop infinitely.
+ * Using runTest's implicit advanceUntilIdle() teardown would cause the scheduler to run forever,
+ * so tests drive the scheduler manually via [TestCoroutineScheduler.runCurrent], which executes
+ * only tasks already queued at the current virtual time without advancing the clock.
+ *
+ * Tests that stub/verify suspend use-case functions use [runBlocking] so the suspension is valid.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
@@ -131,14 +132,16 @@ class DashboardViewModelTest {
     // --- connect / disconnect -------------------------------------------------
 
     @Test
-    fun `connect() delegates to ConnectSimulatorUseCase`() { runBlocking {
-        viewModel.connect()
-        drainCurrent()
-        verify(connectUseCase).invoke()
+    fun `connect delegates to ConnectSimulatorUseCase`() {
+        runBlocking {
+            viewModel.connect()
+            drainCurrent()
+            verify(connectUseCase).invoke()
+        }
     }
 
     @Test
-    fun `disconnect() delegates to DisconnectSimulatorUseCase`() {
+    fun `disconnect delegates to DisconnectSimulatorUseCase`() {
         viewModel.disconnect()
         verify(disconnectUseCase).invoke()
     }
@@ -146,14 +149,16 @@ class DashboardViewModelTest {
     // --- start / stop simulation ---------------------------------------------
 
     @Test
-    fun `startSimulation() delegates to StartSimulationUseCase`() { runBlocking {
-        viewModel.startSimulation()
-        drainCurrent()
-        verify(startUseCase).invoke()
+    fun `startSimulation delegates to StartSimulationUseCase`() {
+        runBlocking {
+            viewModel.startSimulation()
+            drainCurrent()
+            verify(startUseCase).invoke()
+        }
     }
 
     @Test
-    fun `stopSimulation() delegates to StopSimulationUseCase`() {
+    fun `stopSimulation delegates to StopSimulationUseCase`() {
         viewModel.stopSimulation()
         verify(stopUseCase).invoke()
     }
@@ -161,35 +166,38 @@ class DashboardViewModelTest {
     // --- triggerPin ----------------------------------------------------------
 
     @Test
-    fun `triggerPin() delegates to TriggerManualPinUseCase with correct pin`() { runBlocking {
-        val pin = DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL, shootCount = 0L)
-        whenever(triggerUseCase.invoke(pin)).thenReturn(pin.copy(shootCount = 1L))
-
-        viewModel.triggerPin(pin)
-        drainCurrent()
-
-        verify(triggerUseCase).invoke(pin)
+    fun `triggerPin delegates to TriggerManualPinUseCase with correct pin`() {
+        runBlocking {
+            val pin = DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL, shootCount = 0L)
+            whenever(triggerUseCase.invoke(pin)).thenReturn(pin.copy(shootCount = 1L))
+            viewModel.triggerPin(pin)
+            drainCurrent()
+            verify(triggerUseCase).invoke(pin)
+        }
     }
 
     // --- error lifecycle -----------------------------------------------------
 
     @Test
-    fun `exception during connect sets errorMessage`() { runBlocking {
-        whenever(connectUseCase.invoke()).thenThrow(RuntimeException("timeout"))
-        viewModel.connect()
-        drainCurrent()
-        assertEquals("timeout", viewModel.errorMessage.value)
+    fun `exception during connect sets errorMessage`() {
+        runBlocking {
+            whenever(connectUseCase.invoke()).thenThrow(RuntimeException("timeout"))
+            viewModel.connect()
+            drainCurrent()
+            assertEquals("timeout", viewModel.errorMessage.value)
+        }
     }
 
     @Test
-    fun `clearError() nullifies errorMessage`() { runBlocking {
-        whenever(connectUseCase.invoke()).thenThrow(RuntimeException("MQTT boom"))
-        viewModel.connect()
-        drainCurrent()
-        assertEquals("MQTT boom", viewModel.errorMessage.value)
-
-        viewModel.clearError()
-        assertNull(viewModel.errorMessage.value)
+    fun `clearError nullifies errorMessage`() {
+        runBlocking {
+            whenever(connectUseCase.invoke()).thenThrow(RuntimeException("MQTT boom"))
+            viewModel.connect()
+            drainCurrent()
+            assertEquals("MQTT boom", viewModel.errorMessage.value)
+            viewModel.clearError()
+            assertNull(viewModel.errorMessage.value)
+        }
     }
 
     // --- state propagation ---------------------------------------------------
@@ -213,16 +221,14 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `pins list is populated from managePinsUseCase`() { runBlocking {
+    fun `pins list is populated from managePinsUseCase`() {
         val pinList = listOf(DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL))
         whenever(managePinsUseCase.observeAll()).thenReturn(flowOf(pinList))
-
         val vm = DashboardViewModel(
             connectUseCase, disconnectUseCase, startUseCase, stopUseCase,
             triggerUseCase, managePinsUseCase, edgeMqttRepository, simulationManager, wifiInfoProvider
         )
         drainCurrent()
-
         assertEquals(pinList, vm.pins.value)
     }
 }
