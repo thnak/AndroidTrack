@@ -9,6 +9,7 @@ import com.androidtrack.app.data.model.BrokerConfig
 import com.androidtrack.app.data.model.DeviceConfig
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppSettingsRepository
 import com.androidtrack.app.data.repository.ConfigRepository
 import com.androidtrack.app.domain.usecase.ManagePinsUseCase
 import com.androidtrack.app.domain.usecase.SaveBrokerConfigUseCase
@@ -68,6 +69,7 @@ class SettingsViewModel @Inject constructor(
     private val saveBrokerConfigUseCase: SaveBrokerConfigUseCase,
     private val saveDeviceConfigUseCase: SaveDeviceConfigUseCase,
     private val managePinsUseCase: ManagePinsUseCase,
+    private val appSettingsRepository: AppSettingsRepository,
     @ApplicationContext context: Context
 ) : ViewModel() {
 
@@ -91,6 +93,13 @@ class SettingsViewModel @Inject constructor(
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    /** Mirrors [AppSettingsRepository.showConsoleLog] for the UI. */
+    val showConsoleLog: StateFlow<Boolean> = appSettingsRepository.showConsoleLog
+
+    fun toggleShowConsoleLog(enabled: Boolean) {
+        appSettingsRepository.setShowConsoleLog(enabled)
+    }
 
     init {
         viewModelScope.launch {

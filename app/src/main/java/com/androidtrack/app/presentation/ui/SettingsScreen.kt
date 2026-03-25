@@ -50,6 +50,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val pins by viewModel.pins.collectAsState()
     val pinDialog by viewModel.pinDialog.collectAsState()
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+    val showConsoleLog by viewModel.showConsoleLog.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -166,6 +167,30 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     onClick = viewModel::showAddPinDialog,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("+ Add New Pin") }
+            }
+
+            // --- App Settings section ------------------------------------
+            SectionCard(title = "App Settings") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Show Console Log",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Display MQTT and application events on the Dashboard",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showConsoleLog,
+                        onCheckedChange = viewModel::toggleShowConsoleLog
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

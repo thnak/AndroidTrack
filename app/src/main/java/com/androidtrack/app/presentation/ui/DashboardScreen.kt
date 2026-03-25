@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Snackbar
@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppLogger
 import com.androidtrack.app.data.repository.WifiInfoProvider
 import com.androidtrack.app.presentation.viewmodel.DashboardViewModel
 
@@ -53,9 +54,13 @@ import com.androidtrack.app.presentation.viewmodel.DashboardViewModel
 fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
     val connectionState by viewModel.connectionState.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
+    val isStarting by viewModel.isStarting.collectAsState()
+    val isStopping by viewModel.isStopping.collectAsState()
+    val triggeringPinIds by viewModel.triggeringPinIds.collectAsState()
     val pins by viewModel.pins.collectAsState()
     val rssi by viewModel.rssi.collectAsState()
     val logMessages by viewModel.logMessages.collectAsState()
+    val showConsoleLog by viewModel.showConsoleLog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -82,6 +87,8 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
             ControlButtonsRow(
                 connectionState = connectionState,
                 isRunning = isRunning,
+                isStarting = isStarting,
+                isStopping = isStopping,
                 onConnect = viewModel::connect,
                 onDisconnect = viewModel::disconnect,
                 onStart = viewModel::startSimulation,
@@ -118,16 +125,18 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
                         DiPinCard(
                             pin = pin,
                             isSimulationRunning = isRunning,
+                            isTriggering = triggeringPinIds.contains(pin.id),
                             onTrigger = { viewModel.triggerPin(pin) }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // --- Console log ------------------------------------------------
-            ConsoleLogSection(logMessages)
+            // --- Console log (conditional) ----------------------------------
+            if (showConsoleLog) {
+                Spacer(modifier = Modifier.height(10.dp))
+                ConsoleLogSection(logMessages)
+            }
         }
 
         SnackbarHost(
@@ -193,6 +202,8 @@ private fun StatusHeaderRow(connectionState: MqttConnectionState, rssi: Int) {
 private fun ControlButtonsRow(
     connectionState: MqttConnectionState,
     isRunning: Boolean,
+    isStarting: Boolean,
+    isStopping: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onStart: () -> Unit,
@@ -200,6 +211,7 @@ private fun ControlButtonsRow(
 ) {
     val isConnected = connectionState is MqttConnectionState.Connected
     val isConnecting = connectionState is MqttConnectionState.Connecting
+    val anyBusy = isConnecting || isStarting || isStopping
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -208,16 +220,26 @@ private fun ControlButtonsRow(
         ) {
             Button(
                 onClick = onConnect,
-                enabled = !isConnected && !isConnecting,
+                enabled = !isConnected && !isConnecting && !anyBusy,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
-            ) { Text("Connect") }
+            ) {
+                if (isConnecting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text("Connect")
+            }
 
             OutlinedButton(
                 onClick = onDisconnect,
-                enabled = isConnected || isConnecting,
+                enabled = (isConnected || isConnecting) && !anyBusy,
                 modifier = Modifier.weight(1f)
             ) { Text("Disconnect") }
         }
@@ -228,18 +250,38 @@ private fun ControlButtonsRow(
         ) {
             Button(
                 onClick = onStart,
-                enabled = isConnected && !isRunning,
+                enabled = isConnected && !isRunning && !isStarting && !anyBusy,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2E7D32)
                 )
-            ) { Text("Start Simulation") }
+            ) {
+                if (isStarting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text("Start Simulation")
+            }
 
             OutlinedButton(
                 onClick = onStop,
-                enabled = isRunning,
+                enabled = isRunning && !isStopping && !anyBusy,
                 modifier = Modifier.weight(1f)
-            ) { Text("Stop Simulation") }
+            ) {
+                if (isStopping) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text("Stop Simulation")
+            }
         }
     }
 }
@@ -249,7 +291,7 @@ private fun ControlButtonsRow(
 // ---------------------------------------------------------------------------
 
 @Composable
-fun DiPinCard(pin: DiPin, isSimulationRunning: Boolean, onTrigger: () -> Unit) {
+fun DiPinCard(pin: DiPin, isSimulationRunning: Boolean, isTriggering: Boolean, onTrigger: () -> Unit) {
     val haptic = LocalHapticFeedback.current
 
     Card(
@@ -282,10 +324,21 @@ fun DiPinCard(pin: DiPin, isSimulationRunning: Boolean, onTrigger: () -> Unit) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onTrigger()
                         },
+                        enabled = !isTriggering,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
                         )
-                    ) { Text("Trigger") }
+                    ) {
+                        if (isTriggering) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = MaterialTheme.colorScheme.onSecondary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text("Trigger")
+                    }
                 }
                 PinMode.AUTO -> {
                     Text(
@@ -304,7 +357,7 @@ fun DiPinCard(pin: DiPin, isSimulationRunning: Boolean, onTrigger: () -> Unit) {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun ConsoleLogSection(messages: List<String>) {
+private fun ConsoleLogSection(messages: List<AppLogger.LogEntry>) {
     Text("Console Log", style = MaterialTheme.typography.titleMedium)
     Spacer(modifier = Modifier.height(4.dp))
 
@@ -316,7 +369,7 @@ private fun ConsoleLogSection(messages: List<String>) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 80.dp, max = 160.dp),
+            .heightIn(min = 80.dp, max = 200.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1B1F))
     ) {
         Column(
@@ -333,12 +386,18 @@ private fun ConsoleLogSection(messages: List<String>) {
                     color = Color(0xFF9E9E9E)
                 )
             } else {
-                messages.forEach { msg ->
+                messages.forEach { entry ->
+                    val color = when (entry.level) {
+                        "E" -> Color(0xFFEF9A9A) // red – error
+                        "W" -> Color(0xFFFFCC80) // amber – warn
+                        "I" -> Color(0xFF80CBC4) // teal – info
+                        else -> Color(0xFF9E9E9E) // gray – debug
+                    }
                     Text(
-                        text = msg,
+                        text = entry.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
-                        color = Color(0xFF80CBC4)
+                        color = color
                     )
                 }
             }

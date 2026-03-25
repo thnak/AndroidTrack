@@ -8,7 +8,6 @@ import com.androidtrack.app.data.model.MqttConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
@@ -34,7 +33,9 @@ import javax.net.ssl.SSLContext
  * (suitable for publicly-signed certificates).
  */
 @Singleton
-class EdgeMqttRepository @Inject constructor() {
+class EdgeMqttRepository @Inject constructor(
+    private val appLogger: AppLogger
+) {
 
     private val tag = "EdgeMqttRepository"
 
@@ -53,6 +54,7 @@ class EdgeMqttRepository @Inject constructor() {
     suspend fun connect(brokerConfig: BrokerConfig, deviceConfig: DeviceConfig) {
         try {
             _connectionState.value = MqttConnectionState.Connecting
+            appLogger.info("Connecting to ${brokerConfig.toUrl()}…")
 
             mqttClient = MqttAsyncClient(
                 // BrokerConfig.toUrl() builds the full "tcp://" or "ssl://" URL.
@@ -62,13 +64,17 @@ class EdgeMqttRepository @Inject constructor() {
             ).apply {
                 setCallback(object : MqttCallbackExtended {
                     override fun connectComplete(reconnect: Boolean, serverURI: String?) {
-                        Log.d(tag, "Connected to broker: $serverURI (reconnect=$reconnect)")
+                        val msg = if (reconnect) "Reconnected to $serverURI" else "Connected to $serverURI"
+                        Log.d(tag, msg)
+                        appLogger.info(msg)
                         _connectionState.value =
                             MqttConnectionState.Connected(brokerConfig.toUrl())
                     }
 
                     override fun connectionLost(cause: Throwable?) {
-                        Log.w(tag, "Connection lost", cause)
+                        val msg = "Connection lost: ${cause?.message ?: "unknown"}"
+                        Log.w(tag, msg, cause)
+                        appLogger.warn(msg)
                         _connectionState.value = MqttConnectionState.Disconnected
                     }
 
@@ -109,7 +115,9 @@ class EdgeMqttRepository @Inject constructor() {
             }
 
         } catch (e: Exception) {
-            Log.e(tag, "Failed to connect", e)
+            val msg = "Failed to connect: ${e.message}"
+            Log.e(tag, msg, e)
+            appLogger.error(msg)
             _connectionState.value = MqttConnectionState.Error(e.message ?: "Connection failed")
         }
     }
@@ -121,8 +129,10 @@ class EdgeMqttRepository @Inject constructor() {
         try {
             mqttClient?.disconnect()
             mqttClient = null
+            appLogger.info("Disconnected from broker")
         } catch (e: Exception) {
             Log.e(tag, "Error disconnecting", e)
+            appLogger.error("Disconnect error: ${e.message}")
         } finally {
             _connectionState.value = MqttConnectionState.Disconnected
         }
@@ -197,17 +207,12 @@ class EdgeMqttRepository @Inject constructor() {
             }
             client.publish(topic, msg)
             Log.d(tag, "→ $topic  $payload")
-            appendLog("→ $topic")
+            appLogger.debug("→ $topic")
         } catch (e: Exception) {
-            Log.e(tag, "Failed to publish to $topic", e)
+            val errMsg = "Publish failed [$topic]: ${e.message}"
+            Log.e(tag, errMsg, e)
+            appLogger.error(errMsg)
         }
-    }
-
-    private val _recentMessages = MutableStateFlow<List<String>>(emptyList())
-    val recentMessages: StateFlow<List<String>> = _recentMessages.asStateFlow()
-
-    private fun appendLog(entry: String) {
-        _recentMessages.update { msgs -> (msgs + entry).takeLast(50) }
     }
 
     private fun now(): String = Instant.now().toString()
