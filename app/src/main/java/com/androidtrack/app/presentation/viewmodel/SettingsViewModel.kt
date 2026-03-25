@@ -1,7 +1,6 @@
 package com.androidtrack.app.presentation.viewmodel
 
 import android.content.Context
-import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.androidtrack.app.R
@@ -11,6 +10,7 @@ import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.PinMode
 import com.androidtrack.app.data.repository.AppSettingsRepository
 import com.androidtrack.app.data.repository.ConfigRepository
+import com.androidtrack.app.data.repository.WifiInfoProvider
 import com.androidtrack.app.domain.usecase.ManagePinsUseCase
 import com.androidtrack.app.domain.usecase.SaveBrokerConfigUseCase
 import com.androidtrack.app.domain.usecase.SaveDeviceConfigUseCase
@@ -70,12 +70,12 @@ class SettingsViewModel @Inject constructor(
     private val saveDeviceConfigUseCase: SaveDeviceConfigUseCase,
     private val managePinsUseCase: ManagePinsUseCase,
     private val appSettingsRepository: AppSettingsRepository,
+    private val wifiInfoProvider: WifiInfoProvider,
     @ApplicationContext context: Context
 ) : ViewModel() {
 
-    /** Stable device identifier used as MQTT Client ID (derived from ANDROID_ID). */
-    val deviceClientId: String =
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+    /** Stable device identifier used as MQTT Client ID (derived from MAC address). */
+    val deviceClientId: String = wifiInfoProvider.getMacAddress()
 
     private val appContext: Context = context
 
