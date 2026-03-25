@@ -5,7 +5,6 @@ import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.repository.MqttRepository
 import com.androidtrack.app.domain.model.SensorData
 import kotlinx.coroutines.flow.StateFlow
-import org.json.JSONObject
 import javax.inject.Inject
 
 /**
@@ -30,11 +29,7 @@ class PublishSensorDataUseCase @Inject constructor(
     }
 
     private fun createJsonPayload(sensorData: SensorData): String {
-        return JSONObject().apply {
-            put("type", sensorData.type)
-            put("name", sensorData.name)
-            put("values", sensorData.values)
-            put("timestamp", sensorData.timestamp)
-        }.toString()
+        val valuesJson = sensorData.values.joinToString(",", "[", "]")
+        return """{"type":"${sensorData.type}","name":"${sensorData.name}","values":$valuesJson,"timestamp":${sensorData.timestamp}}"""
     }
 }
