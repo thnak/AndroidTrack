@@ -6,6 +6,7 @@ import com.androidtrack.app.data.model.DeviceConfig
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppLogger
 import io.moquette.broker.Server
 import io.moquette.broker.config.MemoryConfig
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,7 @@ class EdgeMqttRepositoryIntegrationTest {
     }
 
     private lateinit var repository: EdgeMqttRepository
+    private val appLogger = AppLogger()
 
     private fun uniqueClientId(tag: String = "") =
         "edge-test-${System.nanoTime()}${if (tag.isNotEmpty()) "-$tag" else ""}"
@@ -83,7 +85,7 @@ class EdgeMqttRepositoryIntegrationTest {
 
     @Before
     fun createRepository() {
-        repository = EdgeMqttRepository()
+        repository = EdgeMqttRepository(appLogger)
     }
 
     @After
@@ -99,8 +101,8 @@ class EdgeMqttRepositoryIntegrationTest {
     }
 
     @Test
-    fun `initial recentMessages is empty`() {
-        assertTrue(repository.recentMessages.value.isEmpty())
+    fun `initial appLogger logs is empty`() {
+        assertTrue(appLogger.logs.value.isEmpty())
     }
 
     // --- connection state transitions ---------------------------------------------
@@ -292,38 +294,38 @@ class EdgeMqttRepositoryIntegrationTest {
     // --- recentMessages -----------------------------------------------------------
 
     @Test
-    fun `recentMessages grows after each publish`() = runTest {
+    fun `appLogger logs grow after each publish`() = runTest {
         connectAndWait(brokerConfig("recent"))
 
-        val initialSize = repository.recentMessages.value.size
+        val initialSize = appLogger.logs.value.size
         repository.publishLog("DEV-A", "msg1")
         repository.publishLog("DEV-A", "msg2")
 
-        // Give the internal appendLog a moment to process (it's synchronous in the coroutine).
-        val messages = repository.recentMessages.value
-        assertTrue("recentMessages should grow after publishes", messages.size >= initialSize + 2)
+        // Give the internal publish a moment to process.
+        val messages = appLogger.logs.value
+        assertTrue("appLogger logs should grow after publishes", messages.size >= initialSize + 2)
     }
 
     @Test
-    fun `recentMessages entries contain arrow and topic`() = runTest {
+    fun `appLogger log entries contain arrow and topic`() = runTest {
         connectAndWait(brokerConfig("recent-content"))
 
         repository.publishLog("MY-DEV", "hello")
 
-        val messages = repository.recentMessages.value
-        assertTrue(messages.any { it.startsWith("→") && it.contains("devices/MY-DEV/log/info") })
+        val messages = appLogger.logs.value
+        assertTrue(messages.any { it.message.startsWith("→") && it.message.contains("devices/MY-DEV/log/info") })
     }
 
     @Test
-    fun `recentMessages is capped at 50 entries`() = runTest {
+    fun `appLogger logs are capped at max entries`() = runTest {
         connectAndWait(brokerConfig("cap"))
 
         repeat(55) { i ->
             repository.publishLog("CAP-DEV", "message $i")
         }
 
-        val count = repository.recentMessages.value.size
-        assertTrue("recentMessages should be capped at 50, was $count", count <= 50)
+        val count = appLogger.logs.value.size
+        assertTrue("appLogger logs should not exceed 200 entries, was $count", count <= 200)
     }
 
     // --- no-op publish when disconnected ------------------------------------------
@@ -333,8 +335,8 @@ class EdgeMqttRepositoryIntegrationTest {
         // Never call connect – repository is in Disconnected state.
         repository.publishLog("DEV", "log message")
         assertEquals(MqttConnectionState.Disconnected, repository.connectionState.value)
-        // recentMessages stays empty because the internal publish guard returns early.
-        assertFalse(repository.recentMessages.value.any { it.contains("log/info") })
+        // appLogger stays empty because the internal publish guard returns early.
+        assertFalse(appLogger.logs.value.any { it.message.contains("log/info") })
     }
 
     // --- helpers ------------------------------------------------------------------

@@ -7,12 +7,14 @@ import com.androidtrack.app.data.model.BrokerConfig
 import com.androidtrack.app.data.model.DeviceConfig
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppSettingsRepository
 import com.androidtrack.app.data.repository.ConfigRepository
 import com.androidtrack.app.domain.usecase.ManagePinsUseCase
 import com.androidtrack.app.domain.usecase.SaveBrokerConfigUseCase
 import com.androidtrack.app.domain.usecase.SaveDeviceConfigUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -45,6 +47,7 @@ class SettingsViewModelTest {
     private lateinit var saveBrokerConfigUseCase: SaveBrokerConfigUseCase
     private lateinit var saveDeviceConfigUseCase: SaveDeviceConfigUseCase
     private lateinit var managePinsUseCase: ManagePinsUseCase
+    private lateinit var appSettingsRepository: AppSettingsRepository
     private lateinit var context: Context
     private lateinit var contentResolver: ContentResolver
 
@@ -62,6 +65,7 @@ class SettingsViewModelTest {
         saveBrokerConfigUseCase = mock()
         saveDeviceConfigUseCase = mock()
         managePinsUseCase = mock()
+        appSettingsRepository = mock()
         context = mock()
         contentResolver = mock()
 
@@ -69,6 +73,7 @@ class SettingsViewModelTest {
         whenever(managePinsUseCase.observeAll()).thenReturn(flowOf(emptyList()))
         whenever(configRepository.observeBrokerConfig()).thenReturn(flowOf(null))
         whenever(configRepository.observeDeviceConfig()).thenReturn(flowOf(null))
+        whenever(appSettingsRepository.showConsoleLog).thenReturn(MutableStateFlow(true))
 
         // Mock static Settings.Secure.getString to return testAndroidId.
         mockedSettingsSecure = Mockito.mockStatic(Settings.Secure::class.java)
@@ -81,6 +86,7 @@ class SettingsViewModelTest {
             saveBrokerConfigUseCase,
             saveDeviceConfigUseCase,
             managePinsUseCase,
+            appSettingsRepository,
             context
         )
     }
@@ -388,6 +394,7 @@ class SettingsViewModelTest {
             saveBrokerConfigUseCase,
             saveDeviceConfigUseCase,
             managePinsUseCase,
+            appSettingsRepository,
             context
         )
         runCurrent()
@@ -410,6 +417,7 @@ class SettingsViewModelTest {
             saveBrokerConfigUseCase,
             saveDeviceConfigUseCase,
             managePinsUseCase,
+            appSettingsRepository,
             context
         )
         runCurrent()
