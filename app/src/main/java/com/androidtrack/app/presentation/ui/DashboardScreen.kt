@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
@@ -56,6 +56,7 @@ import com.androidtrack.app.presentation.viewmodel.DashboardViewModel
 fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
     val connectionState by viewModel.connectionState.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
+    val isConnecting by viewModel.isConnecting.collectAsState()
     val isStarting by viewModel.isStarting.collectAsState()
     val isStopping by viewModel.isStopping.collectAsState()
     val triggeringPinIds by viewModel.triggeringPinIds.collectAsState()
@@ -68,6 +69,7 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
     DashboardContent(
         connectionState = connectionState,
         isRunning = isRunning,
+        isConnecting = isConnecting,
         isStarting = isStarting,
         isStopping = isStopping,
         triggeringPinIds = triggeringPinIds,
@@ -89,6 +91,7 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
 fun DashboardContent(
     connectionState: MqttConnectionState,
     isRunning: Boolean,
+    isConnecting: Boolean,
     isStarting: Boolean,
     isStopping: Boolean,
     triggeringPinIds: Set<Int>,
@@ -128,6 +131,7 @@ fun DashboardContent(
             ControlButtonsRow(
                 connectionState = connectionState,
                 isRunning = isRunning,
+                isConnecting = isConnecting,
                 isStarting = isStarting,
                 isStopping = isStopping,
                 onConnect = onConnect,
@@ -243,6 +247,7 @@ private fun StatusHeaderRow(connectionState: MqttConnectionState, rssi: Int) {
 private fun ControlButtonsRow(
     connectionState: MqttConnectionState,
     isRunning: Boolean,
+    isConnecting: Boolean,
     isStarting: Boolean,
     isStopping: Boolean,
     onConnect: () -> Unit,
@@ -251,8 +256,10 @@ private fun ControlButtonsRow(
     onStop: () -> Unit
 ) {
     val isConnected = connectionState is MqttConnectionState.Connected
-    val isConnecting = connectionState is MqttConnectionState.Connecting
-    val anyBusy = isConnecting || isStarting || isStopping
+    // Combine the ViewModel-level flag (set immediately on click) with the repository-level
+    // Connecting state so the button is disabled the instant the user taps it.
+    val connectingInProgress = isConnecting || connectionState is MqttConnectionState.Connecting
+    val anyBusy = connectingInProgress || isStarting || isStopping
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -261,13 +268,13 @@ private fun ControlButtonsRow(
         ) {
             Button(
                 onClick = onConnect,
-                enabled = !isConnected && !isConnecting && !anyBusy,
+                enabled = !isConnected && !connectingInProgress && !anyBusy,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                if (isConnecting) {
+                if (connectingInProgress) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
@@ -280,7 +287,7 @@ private fun ControlButtonsRow(
 
             OutlinedButton(
                 onClick = onDisconnect,
-                enabled = (isConnected || isConnecting) && !anyBusy,
+                enabled = (isConnected || connectingInProgress) && !anyBusy,
                 modifier = Modifier.weight(1f)
             ) { Text("Disconnect") }
         }
@@ -457,6 +464,7 @@ fun DashboardPreview() {
         DashboardContent(
             connectionState = MqttConnectionState.Connected("tcp://broker.hivemq.com:1883"),
             isRunning = true,
+            isConnecting = false,
             isStarting = false,
             isStopping = false,
             triggeringPinIds = setOf(1),

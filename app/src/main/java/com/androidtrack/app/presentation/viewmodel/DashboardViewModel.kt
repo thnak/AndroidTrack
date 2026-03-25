@@ -58,6 +58,14 @@ class DashboardViewModel @Inject constructor(
 
     val isRunning: StateFlow<Boolean> = simulationManager.isRunning
 
+    /**
+     * True from the moment [connect] is invoked until the repository reports a terminal state
+     * (Connected / Error / Disconnected). Setting this flag immediately on the UI thread prevents
+     * multiple rapid taps from queuing duplicate connection attempts.
+     */
+    private val _isConnecting = MutableStateFlow(false)
+    val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
+
     /** True while [startSimulation] coroutine is in-flight (before [isRunning] becomes true). */
     private val _isStarting = MutableStateFlow(false)
     val isStarting: StateFlow<Boolean> = _isStarting.asStateFlow()
@@ -96,6 +104,8 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun connect() {
+        if (_isConnecting.value) return   // guard against rapid duplicate taps
+        _isConnecting.value = true
         viewModelScope.launch {
             appLogger.info("Initiating connection…")
             try {
@@ -104,6 +114,8 @@ class DashboardViewModel @Inject constructor(
                 val msg = e.message ?: "Connection failed"
                 appLogger.error(msg)
                 _errorMessage.value = msg
+            } finally {
+                _isConnecting.value = false
             }
         }
     }
