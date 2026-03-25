@@ -47,6 +47,7 @@ class PublishSensorDataUseCaseTest {
         
         verify(mqttRepository).publish(
             org.mockito.kotlin.eq(topic),
+            org.mockito.kotlin.any(),
             org.mockito.kotlin.any()
         )
     }
