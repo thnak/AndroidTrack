@@ -63,7 +63,7 @@ class DashboardViewModelTest {
     private val connectionStateFlow =
         MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
     private val isRunningFlow = MutableStateFlow(false)
-    private val appLoggerLogsFlow = MutableStateFlow<List<AppLogger.LogEntry>>(emptyList())
+    private val logsFlow = MutableStateFlow<List<AppLogger.LogEntry>>(emptyList())
     private val showConsoleLogFlow = MutableStateFlow(true)
 
     private lateinit var viewModel: DashboardViewModel
@@ -85,7 +85,7 @@ class DashboardViewModelTest {
         appSettingsRepository = mock()
 
         whenever(edgeMqttRepository.connectionState).thenReturn(connectionStateFlow)
-        whenever(appLogger.logs).thenReturn(appLoggerLogsFlow)
+        whenever(appLogger.logs).thenReturn(logsFlow)
         whenever(appSettingsRepository.showConsoleLog).thenReturn(showConsoleLogFlow)
         whenever(simulationManager.isRunning).thenReturn(isRunningFlow)
         whenever(managePinsUseCase.observeAll()).thenReturn(flowOf(emptyList()))
@@ -225,7 +225,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `logMessages reflect upstream recentMessages changes`() {
-        appLoggerLogsFlow.value = listOf(
+        logsFlow.value = listOf(
             AppLogger.LogEntry("00:00:01", "D", "→ device/init"),
             AppLogger.LogEntry("00:00:02", "D", "→ heartbeat")
         )

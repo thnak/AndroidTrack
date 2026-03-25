@@ -325,7 +325,7 @@ class EdgeMqttRepositoryIntegrationTest {
         }
 
         val count = appLogger.logs.value.size
-        assertTrue("appLogger logs should not exceed 200 entries, was $count", count <= 200)
+        assertTrue("appLogger logs should not exceed ${AppLogger.MAX_ENTRIES} entries, was $count", count <= AppLogger.MAX_ENTRIES)
     }
 
     // --- no-op publish when disconnected ------------------------------------------
