@@ -9,6 +9,9 @@
 -keep class org.eclipse.paho.** { *; }
 -dontwarn org.eclipse.paho.**
 
+# Keep LocalBroadcastManager for Jetifier and Paho compatibility
+-keep class androidx.localbroadcastmanager.content.LocalBroadcastManager { *; }
+
 # Keep sensor data models
 -keep class com.androidtrack.app.data.model.** { *; }
 
