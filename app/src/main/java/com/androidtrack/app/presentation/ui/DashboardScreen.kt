@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.androidtrack.app.data.model.DiPin
@@ -48,6 +49,7 @@ import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
 import com.androidtrack.app.data.repository.AppLogger
 import com.androidtrack.app.data.repository.WifiInfoProvider
+import com.androidtrack.app.presentation.ui.theme.AndroidTrackTheme
 import com.androidtrack.app.presentation.viewmodel.DashboardViewModel
 
 @Composable
@@ -63,12 +65,51 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
     val showConsoleLog by viewModel.showConsoleLog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    DashboardContent(
+        connectionState = connectionState,
+        isRunning = isRunning,
+        isStarting = isStarting,
+        isStopping = isStopping,
+        triggeringPinIds = triggeringPinIds,
+        pins = pins,
+        rssi = rssi,
+        logMessages = logMessages,
+        showConsoleLog = showConsoleLog,
+        errorMessage = errorMessage,
+        onConnect = viewModel::connect,
+        onDisconnect = viewModel::disconnect,
+        onStart = viewModel::startSimulation,
+        onStop = viewModel::stopSimulation,
+        onTriggerPin = viewModel::triggerPin,
+        onClearError = viewModel::clearError
+    )
+}
+
+@Composable
+fun DashboardContent(
+    connectionState: MqttConnectionState,
+    isRunning: Boolean,
+    isStarting: Boolean,
+    isStopping: Boolean,
+    triggeringPinIds: Set<Int>,
+    pins: List<DiPin>,
+    rssi: Int,
+    logMessages: List<AppLogger.LogEntry>,
+    showConsoleLog: Boolean,
+    errorMessage: String?,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onTriggerPin: (DiPin) -> Unit,
+    onClearError: () -> Unit
+) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+            onClearError()
         }
     }
 
@@ -89,10 +130,10 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
                 isRunning = isRunning,
                 isStarting = isStarting,
                 isStopping = isStopping,
-                onConnect = viewModel::connect,
-                onDisconnect = viewModel::disconnect,
-                onStart = viewModel::startSimulation,
-                onStop = viewModel::stopSimulation
+                onConnect = onConnect,
+                onDisconnect = onDisconnect,
+                onStart = onStart,
+                onStop = onStop
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -126,7 +167,7 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
                             pin = pin,
                             isSimulationRunning = isRunning,
                             isTriggering = triggeringPinIds.contains(pin.id),
-                            onTrigger = { viewModel.triggerPin(pin) }
+                            onTrigger = { onTriggerPin(pin) }
                         )
                     }
                 }
@@ -401,6 +442,63 @@ private fun ConsoleLogSection(messages: List<AppLogger.LogEntry>) {
                     )
                 }
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Previews
+// ---------------------------------------------------------------------------
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardPreview() {
+    AndroidTrackTheme {
+        DashboardContent(
+            connectionState = MqttConnectionState.Connected("tcp://broker.hivemq.com:1883"),
+            isRunning = true,
+            isStarting = false,
+            isStopping = false,
+            triggeringPinIds = setOf(1),
+            pins = listOf(
+                DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL, shootCount = 10),
+                DiPin(id = 2, pinNumber = "02", mode = PinMode.AUTO, timerMs = 2000, shootCount = 42)
+            ),
+            rssi = -65,
+            logMessages = listOf(
+                AppLogger.LogEntry("10:00:01", "I", "Connected to broker"),
+                AppLogger.LogEntry("10:00:05", "D", "Sending heartbeat"),
+                AppLogger.LogEntry("10:00:10", "E", "Failed to send data")
+            ),
+            showConsoleLog = true,
+            errorMessage = null,
+            onConnect = {},
+            onDisconnect = {},
+            onStart = {},
+            onStop = {},
+            onTriggerPin = {},
+            onClearError = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DiPinCardPreview() {
+    AndroidTrackTheme {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DiPinCard(
+                pin = DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL, shootCount = 10),
+                isSimulationRunning = false,
+                isTriggering = false,
+                onTrigger = {}
+            )
+            DiPinCard(
+                pin = DiPin(id = 2, pinNumber = "02", mode = PinMode.AUTO, timerMs = 2000, shootCount = 42),
+                isSimulationRunning = true,
+                isTriggering = false,
+                onTrigger = {}
+            )
         }
     }
 }

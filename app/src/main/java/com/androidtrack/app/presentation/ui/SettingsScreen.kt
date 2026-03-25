@@ -17,7 +17,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,10 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.presentation.ui.theme.AndroidTrackTheme
+import com.androidtrack.app.presentation.viewmodel.BrokerConfigFormState
+import com.androidtrack.app.presentation.viewmodel.DeviceConfigFormState
 import com.androidtrack.app.presentation.viewmodel.PinDialogState
 import com.androidtrack.app.presentation.viewmodel.SettingsViewModel
 
@@ -52,12 +55,73 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
     val showConsoleLog by viewModel.showConsoleLog.collectAsState()
 
+    SettingsScreenContent(
+        brokerForm = brokerForm,
+        deviceForm = deviceForm,
+        pins = pins,
+        pinDialog = pinDialog,
+        snackbarMessage = snackbarMessage,
+        showConsoleLog = showConsoleLog,
+        deviceClientId = viewModel.deviceClientId,
+        updateBrokerHost = viewModel::updateBrokerHost,
+        updateBrokerPort = viewModel::updateBrokerPort,
+        updateBrokerUsername = viewModel::updateBrokerUsername,
+        updateBrokerPassword = viewModel::updateBrokerPassword,
+        updateBrokerSecure = viewModel::updateBrokerSecure,
+        saveBrokerConfig = viewModel::saveBrokerConfig,
+        updateDeviceId = viewModel::updateDeviceId,
+        updateDeviceType = viewModel::updateDeviceType,
+        saveDeviceConfig = viewModel::saveDeviceConfig,
+        showEditPinDialog = viewModel::showEditPinDialog,
+        deletePin = viewModel::deletePin,
+        showAddPinDialog = viewModel::showAddPinDialog,
+        toggleShowConsoleLog = viewModel::toggleShowConsoleLog,
+        clearSnackbar = viewModel::clearSnackbar,
+        dismissPinDialog = viewModel::dismissPinDialog,
+        updatePinNumber = viewModel::updatePinNumber,
+        updatePinMode = viewModel::updatePinMode,
+        updatePinTimer = viewModel::updatePinTimer,
+        updatePinPulse = viewModel::updatePinPulse,
+        savePinFromDialog = viewModel::savePinFromDialog
+    )
+}
+
+@Composable
+fun SettingsScreenContent(
+    brokerForm: BrokerConfigFormState,
+    deviceForm: DeviceConfigFormState,
+    pins: List<DiPin>,
+    pinDialog: PinDialogState,
+    snackbarMessage: String?,
+    showConsoleLog: Boolean,
+    deviceClientId: String,
+    updateBrokerHost: (String) -> Unit,
+    updateBrokerPort: (String) -> Unit,
+    updateBrokerUsername: (String) -> Unit,
+    updateBrokerPassword: (String) -> Unit,
+    updateBrokerSecure: (Boolean) -> Unit,
+    saveBrokerConfig: () -> Unit,
+    updateDeviceId: (String) -> Unit,
+    updateDeviceType: (String) -> Unit,
+    saveDeviceConfig: () -> Unit,
+    showEditPinDialog: (DiPin) -> Unit,
+    deletePin: (Int) -> Unit,
+    showAddPinDialog: () -> Unit,
+    toggleShowConsoleLog: (Boolean) -> Unit,
+    clearSnackbar: () -> Unit,
+    dismissPinDialog: () -> Unit,
+    updatePinNumber: (String) -> Unit,
+    updatePinMode: (PinMode) -> Unit,
+    updatePinTimer: (String) -> Unit,
+    updatePinPulse: (String) -> Unit,
+    savePinFromDialog: () -> Unit
+) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
+            clearSnackbar()
         }
     }
 
@@ -73,14 +137,14 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SectionCard(title = "Broker Settings") {
                 OutlinedTextField(
                     value = brokerForm.host,
-                    onValueChange = viewModel::updateBrokerHost,
+                    onValueChange = updateBrokerHost,
                     label = { Text("Host") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = brokerForm.port,
-                    onValueChange = viewModel::updateBrokerPort,
+                    onValueChange = updateBrokerPort,
                     label = { Text("Port") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -88,14 +152,14 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 )
                 OutlinedTextField(
                     value = brokerForm.username,
-                    onValueChange = viewModel::updateBrokerUsername,
+                    onValueChange = updateBrokerUsername,
                     label = { Text("Username (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = brokerForm.password,
-                    onValueChange = viewModel::updateBrokerPassword,
+                    onValueChange = updateBrokerPassword,
                     label = { Text("Password (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
@@ -113,11 +177,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     )
                     Switch(
                         checked = brokerForm.secure,
-                        onCheckedChange = viewModel::updateBrokerSecure
+                        onCheckedChange = updateBrokerSecure
                     )
                 }
                 Button(
-                    onClick = viewModel::saveBrokerConfig,
+                    onClick = saveBrokerConfig,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Save Broker Settings") }
             }
@@ -125,7 +189,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             // --- Device section ------------------------------------------
             SectionCard(title = "Device Settings") {
                 OutlinedTextField(
-                    value = viewModel.deviceClientId,
+                    value = deviceClientId,
                     onValueChange = {},
                     label = { Text("Client ID (auto)") },
                     modifier = Modifier.fillMaxWidth(),
@@ -134,20 +198,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 )
                 OutlinedTextField(
                     value = deviceForm.deviceId,
-                    onValueChange = viewModel::updateDeviceId,
+                    onValueChange = updateDeviceId,
                     label = { Text("Device ID") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = deviceForm.deviceType,
-                    onValueChange = viewModel::updateDeviceType,
+                    onValueChange = updateDeviceType,
                     label = { Text("Device Type") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 Button(
-                    onClick = viewModel::saveDeviceConfig,
+                    onClick = saveDeviceConfig,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Save Device Settings") }
             }
@@ -158,13 +222,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     if (index > 0) HorizontalDivider()
                     PinListItem(
                         pin = pin,
-                        onEdit = { viewModel.showEditPinDialog(pin) },
-                        onDelete = { viewModel.deletePin(pin.id) }
+                        onEdit = { showEditPinDialog(pin) },
+                        onDelete = { deletePin(pin.id) }
                     )
                 }
                 if (pins.isNotEmpty()) Spacer(modifier = Modifier.height(4.dp))
                 OutlinedButton(
-                    onClick = viewModel::showAddPinDialog,
+                    onClick = showAddPinDialog,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("+ Add New Pin") }
             }
@@ -188,7 +252,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     }
                     Switch(
                         checked = showConsoleLog,
-                        onCheckedChange = viewModel::toggleShowConsoleLog
+                        onCheckedChange = toggleShowConsoleLog
                     )
                 }
             }
@@ -207,12 +271,12 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     if (pinDialog.isVisible) {
         PinDialog(
             state = pinDialog,
-            onDismiss = viewModel::dismissPinDialog,
-            onPinNumberChange = viewModel::updatePinNumber,
-            onModeChange = viewModel::updatePinMode,
-            onTimerChange = viewModel::updatePinTimer,
-            onPulseChange = viewModel::updatePinPulse,
-            onSave = viewModel::savePinFromDialog
+            onDismiss = dismissPinDialog,
+            onPinNumberChange = updatePinNumber,
+            onModeChange = updatePinMode,
+            onTimerChange = updatePinTimer,
+            onPulseChange = updatePinPulse,
+            onSave = savePinFromDialog
         )
     }
 }
@@ -346,4 +410,47 @@ private fun PinDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+// ---------------------------------------------------------------------------
+// Previews
+// ---------------------------------------------------------------------------
+
+@Preview(showBackground = true)
+@Composable
+fun SettingsScreenPreview() {
+    AndroidTrackTheme {
+        SettingsScreenContent(
+            brokerForm = BrokerConfigFormState(),
+            deviceForm = DeviceConfigFormState(),
+            pins = listOf(
+                DiPin(id = 1, pinNumber = "01", mode = PinMode.MANUAL),
+                DiPin(id = 2, pinNumber = "02", mode = PinMode.AUTO, timerMs = 5000)
+            ),
+            pinDialog = PinDialogState(),
+            snackbarMessage = null,
+            showConsoleLog = true,
+            deviceClientId = "preview-client-id",
+            updateBrokerHost = {},
+            updateBrokerPort = {},
+            updateBrokerUsername = {},
+            updateBrokerPassword = {},
+            updateBrokerSecure = {},
+            saveBrokerConfig = {},
+            updateDeviceId = {},
+            updateDeviceType = {},
+            saveDeviceConfig = {},
+            showEditPinDialog = {},
+            deletePin = {},
+            showAddPinDialog = {},
+            toggleShowConsoleLog = {},
+            clearSnackbar = {},
+            dismissPinDialog = {},
+            updatePinNumber = {},
+            updatePinMode = {},
+            updatePinTimer = {},
+            updatePinPulse = {},
+            savePinFromDialog = {}
+        )
+    }
 }

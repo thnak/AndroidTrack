@@ -10,19 +10,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.androidtrack.app.R
 import com.androidtrack.app.domain.model.SensorData
+import com.androidtrack.app.presentation.ui.theme.AndroidTrackTheme
 import com.androidtrack.app.presentation.viewmodel.SensorViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SensorScreen(
     viewModel: SensorViewModel = hiltViewModel()
 ) {
     val sensorDataList by viewModel.sensorDataList.collectAsState()
+    SensorScreenContent(sensorDataList = sensorDataList)
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SensorScreenContent(
+    sensorDataList: List<SensorData>
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -106,6 +114,31 @@ fun SensorDataItem(sensorData: SensorData) {
             Text(
                 text = stringResource(R.string.sensor_value, sensorData.valuesAsString()),
                 style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SensorScreenPreview() {
+    AndroidTrackTheme {
+        SensorScreenContent(
+            sensorDataList = listOf(
+                SensorData("Accelerometer", "Phone Accelerometer", listOf(0.1f, 9.8f, 0.5f), System.currentTimeMillis()),
+                SensorData("Gyroscope", "Phone Gyroscope", listOf(0.01f, 0.02f, 0.03f), System.currentTimeMillis())
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SensorDataItemPreview() {
+    AndroidTrackTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            SensorDataItem(
+                sensorData = SensorData("Accelerometer", "Phone Accelerometer", listOf(0.1f, 9.8f, 0.5f), System.currentTimeMillis())
             )
         }
     }
