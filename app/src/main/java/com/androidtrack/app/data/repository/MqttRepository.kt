@@ -1,17 +1,13 @@
 package com.androidtrack.app.data.repository
 
-import android.content.Context
 import android.util.Log
 import com.androidtrack.app.data.model.MqttConfig
 import com.androidtrack.app.data.model.MqttConnectionState
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.callbackFlow
-import org.eclipse.paho.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.*
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,12 +15,10 @@ import javax.inject.Singleton
  * Repository for managing MQTT connections and publishing data
  */
 @Singleton
-class MqttRepository @Inject constructor(
-    private val context: Context
-) {
+class MqttRepository @Inject constructor() {
     private val TAG = "MqttRepository"
-    
-    private var mqttClient: MqttAndroidClient? = null
+
+    private var mqttClient: MqttAsyncClient? = null
     private val _connectionState = MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
     val connectionState: StateFlow<MqttConnectionState> = _connectionState.asStateFlow()
 
@@ -34,8 +28,8 @@ class MqttRepository @Inject constructor(
     suspend fun connect(config: MqttConfig) {
         try {
             _connectionState.value = MqttConnectionState.Connecting
-            
-            mqttClient = MqttAndroidClient(context, config.brokerUrl, config.clientId).apply {
+
+            mqttClient = MqttAsyncClient(config.brokerUrl, config.clientId, MemoryPersistence()).apply {
                 setCallback(object : MqttCallbackExtended {
                     override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                         Log.d(TAG, "Connected to MQTT broker: $serverURI")
@@ -62,7 +56,7 @@ class MqttRepository @Inject constructor(
                 isAutomaticReconnect = true
                 connectionTimeout = 10
                 keepAliveInterval = 60
-                
+
                 config.username?.let { userName = it }
                 config.password?.let { password = it.toCharArray() }
             }
@@ -72,7 +66,7 @@ class MqttRepository @Inject constructor(
             } catch (e: MqttException) {
                 throw Exception("Connection timeout or MQTT error: ${e.message}", e)
             }
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect to MQTT broker", e)
             _connectionState.value = MqttConnectionState.Error(e.message ?: "Connection failed")

@@ -19,9 +19,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidTrack">
         
-        <!-- MQTT Service -->
-        <service android:name="org.eclipse.paho.android.service.MqttService" />
-        
         <activity
             android:name=".presentation.MainActivity"
             android:exported="true"
