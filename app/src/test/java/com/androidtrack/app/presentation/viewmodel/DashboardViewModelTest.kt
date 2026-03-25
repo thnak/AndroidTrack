@@ -3,6 +3,8 @@ package com.androidtrack.app.presentation.viewmodel
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppLogger
+import com.androidtrack.app.data.repository.AppSettingsRepository
 import com.androidtrack.app.data.repository.EdgeMqttRepository
 import com.androidtrack.app.data.repository.SimulationManager
 import com.androidtrack.app.data.repository.WifiInfoProvider
@@ -55,11 +57,14 @@ class DashboardViewModelTest {
     private lateinit var edgeMqttRepository: EdgeMqttRepository
     private lateinit var simulationManager: SimulationManager
     private lateinit var wifiInfoProvider: WifiInfoProvider
+    private lateinit var appLogger: AppLogger
+    private lateinit var appSettingsRepository: AppSettingsRepository
 
     private val connectionStateFlow =
         MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
     private val isRunningFlow = MutableStateFlow(false)
-    private val recentMessagesFlow = MutableStateFlow<List<String>>(emptyList())
+    private val logsFlow = MutableStateFlow<List<AppLogger.LogEntry>>(emptyList())
+    private val showConsoleLogFlow = MutableStateFlow(true)
 
     private lateinit var viewModel: DashboardViewModel
 
@@ -76,16 +81,20 @@ class DashboardViewModelTest {
         edgeMqttRepository = mock()
         simulationManager = mock()
         wifiInfoProvider = mock()
+        appLogger = mock()
+        appSettingsRepository = mock()
 
         whenever(edgeMqttRepository.connectionState).thenReturn(connectionStateFlow)
-        whenever(edgeMqttRepository.recentMessages).thenReturn(recentMessagesFlow)
+        whenever(appLogger.logs).thenReturn(logsFlow)
+        whenever(appSettingsRepository.showConsoleLog).thenReturn(showConsoleLogFlow)
         whenever(simulationManager.isRunning).thenReturn(isRunningFlow)
         whenever(managePinsUseCase.observeAll()).thenReturn(flowOf(emptyList()))
         whenever(wifiInfoProvider.getRssi()).thenReturn(WifiInfoProvider.RSSI_UNKNOWN)
 
         viewModel = DashboardViewModel(
             connectUseCase, disconnectUseCase, startUseCase, stopUseCase,
-            triggerUseCase, managePinsUseCase, edgeMqttRepository, simulationManager, wifiInfoProvider
+            triggerUseCase, managePinsUseCase, edgeMqttRepository, simulationManager, wifiInfoProvider,
+            appLogger, appSettingsRepository
         )
     }
 
@@ -126,7 +135,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `logMessages reflect repository recentMessages`() {
-        assertEquals(emptyList<String>(), viewModel.logMessages.value)
+        assertEquals(emptyList<AppLogger.LogEntry>(), viewModel.logMessages.value)
     }
 
     // --- connect / disconnect -------------------------------------------------
@@ -216,7 +225,10 @@ class DashboardViewModelTest {
 
     @Test
     fun `logMessages reflect upstream recentMessages changes`() {
-        recentMessagesFlow.value = listOf("-> device/init", "-> heartbeat")
+        logsFlow.value = listOf(
+            AppLogger.LogEntry("00:00:01", "D", "→ device/init"),
+            AppLogger.LogEntry("00:00:02", "D", "→ heartbeat")
+        )
         assertEquals(2, viewModel.logMessages.value.size)
     }
 
@@ -226,7 +238,8 @@ class DashboardViewModelTest {
         whenever(managePinsUseCase.observeAll()).thenReturn(flowOf(pinList))
         val vm = DashboardViewModel(
             connectUseCase, disconnectUseCase, startUseCase, stopUseCase,
-            triggerUseCase, managePinsUseCase, edgeMqttRepository, simulationManager, wifiInfoProvider
+            triggerUseCase, managePinsUseCase, edgeMqttRepository, simulationManager, wifiInfoProvider,
+            appLogger, appSettingsRepository
         )
         drainCurrent()
         assertEquals(pinList, vm.pins.value)

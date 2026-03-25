@@ -3,6 +3,7 @@ package com.androidtrack.app.data.repository
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.data.model.PinMode
+import com.androidtrack.app.data.repository.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -29,6 +30,7 @@ class SimulationManagerTest {
     private lateinit var edgeMqttRepository: EdgeMqttRepository
     private lateinit var diPinRepository: DiPinRepository
     private lateinit var wifiInfoProvider: WifiInfoProvider
+    private lateinit var appLogger: AppLogger
     private lateinit var manager: SimulationManager
 
     private val connectionStateFlow =
@@ -39,10 +41,11 @@ class SimulationManagerTest {
         edgeMqttRepository = mock()
         diPinRepository = mock()
         wifiInfoProvider = mock()
+        appLogger = mock()
 
         whenever(edgeMqttRepository.connectionState).thenReturn(connectionStateFlow)
 
-        manager = SimulationManager(edgeMqttRepository, diPinRepository, wifiInfoProvider)
+        manager = SimulationManager(edgeMqttRepository, diPinRepository, wifiInfoProvider, appLogger)
     }
 
     @After
