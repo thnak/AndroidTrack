@@ -1,13 +1,81 @@
 <resources>
     <string name="app_name">AndroidTrack</string>
+
+    <!-- Legacy sensor strings (kept for future sensor UI) -->
     <string name="sensor_data">Sensor Data</string>
+    <string name="sensor_type">Type: %s</string>
+    <string name="sensor_value">Value: %s</string>
+    <string name="no_sensors">No sensors detected</string>
+
+    <!-- Navigation tabs -->
+    <string name="tab_dashboard">Dashboard</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Dashboard -->
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_error">Error</string>
+    <string name="rssi_value">RSSI: %d dBm</string>
+    <string name="rssi_unknown">RSSI: N/A</string>
+
+    <string name="btn_connect">Connect</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="btn_start_simulation">Start Simulation</string>
+    <string name="btn_stop_simulation">Stop Simulation</string>
+    <string name="btn_trigger">Trigger</string>
+
+    <string name="label_di_pins">DI Pins</string>
+    <string name="label_console_log">Console Log</string>
+    <string name="no_pins_hint">No pins configured.\nGo to Settings to add pins.</string>
+    <string name="no_log_messages">No messages yet…</string>
+    <string name="pin_running">Running…</string>
+    <string name="pin_idle">Idle</string>
+
+    <!-- Settings – Broker -->
+    <string name="section_broker">Broker Settings</string>
+    <string name="field_host">Host</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Username (optional)</string>
+    <string name="field_password">Password (optional)</string>
+    <string name="field_secure">Secure (SSL/TLS)</string>
+    <string name="btn_save_broker">Save Broker Settings</string>
+
+    <!-- Settings – Device -->
+    <string name="section_device">Device Settings</string>
+    <string name="field_client_id">Client ID (auto)</string>
+    <string name="field_device_id">Device ID</string>
+    <string name="field_device_type">Device Type</string>
+    <string name="btn_save_device">Save Device Settings</string>
+
+    <!-- Settings – Pins -->
+    <string name="section_pins">DI Pin Management</string>
+    <string name="btn_add_pin">+ Add New Pin</string>
+    <string name="btn_edit">Edit</string>
+    <string name="btn_delete">Delete</string>
+
+    <!-- Pin dialog -->
+    <string name="dialog_add_pin">Add DI Pin</string>
+    <string name="dialog_edit_pin">Edit DI Pin</string>
+    <string name="field_pin_number">Pin Number</string>
+    <string name="field_mode">Mode</string>
+    <string name="mode_manual">Manual</string>
+    <string name="mode_auto">Auto</string>
+    <string name="field_timer">Timer (ms)</string>
+    <string name="field_pulse_time">Pulse Time (ms)</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <!-- Feedback messages -->
+    <string name="msg_broker_saved">Broker settings saved</string>
+    <string name="msg_device_saved">Device settings saved</string>
+
+    <!-- Deprecated MQTT strings (kept for backward compat with existing tests) -->
     <string name="mqtt_status">MQTT Status</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="connecting">Connecting...</string>
-    <string name="sensor_type">Type: %s</string>
-    <string name="sensor_value">Value: %s</string>
-    <string name="no_sensors">No sensors detected</string>
     <string name="mqtt_broker">Broker: %s</string>
     <string name="error_mqtt_connection">Failed to connect to MQTT broker</string>
 </resources>
+

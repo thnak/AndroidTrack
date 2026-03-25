@@ -8,6 +8,7 @@ import com.androidtrack.app.data.model.MqttConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
@@ -54,6 +55,7 @@ class EdgeMqttRepository @Inject constructor() {
             _connectionState.value = MqttConnectionState.Connecting
 
             mqttClient = MqttAsyncClient(
+                // BrokerConfig.toUrl() builds the full "tcp://" or "ssl://" URL.
                 brokerConfig.toUrl(),
                 brokerConfig.clientId.ifBlank { MqttAsyncClient.generateClientId() },
                 MemoryPersistence()
@@ -195,9 +197,17 @@ class EdgeMqttRepository @Inject constructor() {
             }
             client.publish(topic, msg)
             Log.d(tag, "→ $topic  $payload")
+            appendLog("→ $topic")
         } catch (e: Exception) {
             Log.e(tag, "Failed to publish to $topic", e)
         }
+    }
+
+    private val _recentMessages = MutableStateFlow<List<String>>(emptyList())
+    val recentMessages: StateFlow<List<String>> = _recentMessages.asStateFlow()
+
+    private fun appendLog(entry: String) {
+        _recentMessages.update { msgs -> (msgs + entry).takeLast(50) }
     }
 
     private fun now(): String = Instant.now().toString()
