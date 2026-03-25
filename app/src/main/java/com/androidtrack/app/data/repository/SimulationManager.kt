@@ -34,7 +34,8 @@ import javax.inject.Singleton
 class SimulationManager @Inject constructor(
     private val edgeMqttRepository: EdgeMqttRepository,
     private val diPinRepository: DiPinRepository,
-    private val wifiInfoProvider: WifiInfoProvider
+    private val wifiInfoProvider: WifiInfoProvider,
+    private val appLogger: AppLogger
 ) {
     private val tag = "SimulationManager"
 
@@ -85,7 +86,9 @@ class SimulationManager @Inject constructor(
         pins.filter { it.mode == PinMode.AUTO }.forEach { startAutoPinScheduler(it) }
 
         _isRunning.value = true
-        Log.i(tag, "Simulation started for device $deviceId with ${pins.size} pin(s)")
+        val msg = "Simulation started – device=$deviceId, pins=${pins.size}"
+        Log.i(tag, msg)
+        appLogger.info(msg)
     }
 
     /**
@@ -106,6 +109,7 @@ class SimulationManager @Inject constructor(
 
         _isRunning.value = false
         Log.i(tag, "Simulation stopped")
+        appLogger.info("Simulation stopped")
     }
 
     // --- Manual trigger ------------------------------------------------------
@@ -120,6 +124,7 @@ class SimulationManager @Inject constructor(
         val updated = diPinRepository.incrementShootCount(pin)
         if (edgeMqttRepository.connectionState.value is MqttConnectionState.Connected) {
             edgeMqttRepository.publishDiData(updated)
+            appLogger.info("Manual pin ${pin.pinNumber} triggered (count=${updated.shootCount})")
         }
         return updated
     }
@@ -166,11 +171,15 @@ class SimulationManager @Inject constructor(
                             if (current != null) {
                                 val updated = diPinRepository.incrementShootCount(current)
                                 edgeMqttRepository.publishDiData(updated)
-                                Log.d(tag, "Auto pin $pinNumber fired (count=${updated.shootCount})")
+                                val msg = "Auto pin $pinNumber fired (count=${updated.shootCount})"
+                                Log.d(tag, msg)
+                                appLogger.debug(msg)
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(tag, "Auto pin $pinNumber scheduler error", e)
+                        val msg = "Auto pin $pinNumber scheduler error: ${e.message}"
+                        Log.e(tag, msg, e)
+                        appLogger.error(msg)
                     }
                 }
             },
