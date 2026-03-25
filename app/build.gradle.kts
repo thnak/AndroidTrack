@@ -90,6 +90,14 @@ dependencies {
     // MQTT
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
 
+    // Room (local database)
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // DataStore (preferences)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
