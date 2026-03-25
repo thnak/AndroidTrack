@@ -16,6 +16,12 @@ jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
 
+    services:
+      mqtt:
+        image: eclipse-mosquitto:latest
+        ports:
+          - 1883:1883
+
     # Set the permissions to the lowest permissions possible needed for your steps.
     # Copilot will be given its own token for its operations.
     permissions:
@@ -26,6 +32,7 @@ jobs:
     env:
       # Enable deterministic builds for better caching
       CI: true
+
 
 
     # You can define any steps you want, and they will run before the agent starts.
