@@ -2,69 +2,43 @@ package com.androidtrack.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.androidtrack.app.data.model.MqttConfig
-import com.androidtrack.app.data.model.MqttConnectionState
 import com.androidtrack.app.domain.model.SensorData
 import com.androidtrack.app.domain.usecase.ObserveSensorDataUseCase
-import com.androidtrack.app.domain.usecase.PublishSensorDataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel for managing sensor and MQTT state
+ * ViewModel for observing device sensor readings.
+ *
+ * Sensor data is collected and stored in-memory for future display.
+ * MQTT publishing of sensor readings is intentionally omitted here –
+ * it will be wired up in a dedicated phase once the Edge Simulator UI is complete.
  */
 @HiltViewModel
 class SensorViewModel @Inject constructor(
-    private val observeSensorDataUseCase: ObserveSensorDataUseCase,
-    private val publishSensorDataUseCase: PublishSensorDataUseCase
+    private val observeSensorDataUseCase: ObserveSensorDataUseCase
 ) : ViewModel() {
 
     private val _sensorDataList = MutableStateFlow<List<SensorData>>(emptyList())
     val sensorDataList: StateFlow<List<SensorData>> = _sensorDataList.asStateFlow()
 
-    val mqttConnectionState: StateFlow<MqttConnectionState> = 
-        publishSensorDataUseCase.connectionState
-
-    private val mqttConfig = MqttConfig()
-
     init {
-        connectToMqtt()
         observeSensors()
-    }
-
-    private fun connectToMqtt() {
-        viewModelScope.launch {
-            publishSensorDataUseCase.connect(mqttConfig)
-        }
     }
 
     private fun observeSensors() {
         viewModelScope.launch {
             observeSensorDataUseCase()
                 .collect { sensorData ->
-                    // Update the list with the latest reading from each sensor type
-                    // Keeps only the most recent 20 sensor readings
+                    // Keep the latest reading per sensor type (max 20 entries)
                     _sensorDataList.update { currentList ->
                         val filtered = currentList.filter { it.type != sensorData.type }
                         (filtered + sensorData).takeLast(20)
                     }
-                    
-                    // Publish to MQTT if connected
-                    if (mqttConnectionState.value is MqttConnectionState.Connected) {
-                        publishSensorDataUseCase.publishSensorData(
-                            sensorData,
-                            mqttConfig.topic
-                        )
-                    }
                 }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        publishSensorDataUseCase.disconnect()
     }
 
     fun getAvailableSensorCount(): Int {
