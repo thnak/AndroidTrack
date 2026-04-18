@@ -2,13 +2,13 @@ package com.androidtrack.app.presentation.viewmodel
 
 import android.content.ContentResolver
 import android.content.Context
-import android.provider.Settings
 import com.androidtrack.app.data.model.BrokerConfig
 import com.androidtrack.app.data.model.DeviceConfig
 import com.androidtrack.app.data.model.DiPin
 import com.androidtrack.app.data.model.PinMode
 import com.androidtrack.app.data.repository.AppSettingsRepository
 import com.androidtrack.app.data.repository.ConfigRepository
+import com.androidtrack.app.data.repository.WifiInfoProvider
 import com.androidtrack.app.domain.usecase.ManagePinsUseCase
 import com.androidtrack.app.domain.usecase.SaveBrokerConfigUseCase
 import com.androidtrack.app.domain.usecase.SaveDeviceConfigUseCase
@@ -29,8 +29,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.MockedStatic
-import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -40,7 +38,7 @@ import org.mockito.kotlin.whenever
 class SettingsViewModelTest {
 
     private lateinit var testDispatcher: TestDispatcher
-    private val testAndroidId = "test-android-id-1234"
+    private val testMacAddress = "AA:BB:CC:DD:EE:FF"
 
     // Dependencies
     private lateinit var configRepository: ConfigRepository
@@ -48,11 +46,9 @@ class SettingsViewModelTest {
     private lateinit var saveDeviceConfigUseCase: SaveDeviceConfigUseCase
     private lateinit var managePinsUseCase: ManagePinsUseCase
     private lateinit var appSettingsRepository: AppSettingsRepository
+    private lateinit var wifiInfoProvider: WifiInfoProvider
     private lateinit var context: Context
     private lateinit var contentResolver: ContentResolver
-
-    // static mock for Settings.Secure
-    private lateinit var mockedSettingsSecure: MockedStatic<Settings.Secure>
 
     private lateinit var viewModel: SettingsViewModel
 
@@ -66,6 +62,7 @@ class SettingsViewModelTest {
         saveDeviceConfigUseCase = mock()
         managePinsUseCase = mock()
         appSettingsRepository = mock()
+        wifiInfoProvider = mock()
         context = mock()
         contentResolver = mock()
 
@@ -74,12 +71,7 @@ class SettingsViewModelTest {
         whenever(configRepository.observeBrokerConfig()).thenReturn(flowOf(null))
         whenever(configRepository.observeDeviceConfig()).thenReturn(flowOf(null))
         whenever(appSettingsRepository.showConsoleLog).thenReturn(MutableStateFlow(true))
-
-        // Mock static Settings.Secure.getString to return testAndroidId.
-        mockedSettingsSecure = Mockito.mockStatic(Settings.Secure::class.java)
-        mockedSettingsSecure.`when`<String> {
-            Settings.Secure.getString(any(), any())
-        }.thenReturn(testAndroidId)
+        whenever(wifiInfoProvider.getMacAddress()).thenReturn(testMacAddress)
 
         viewModel = SettingsViewModel(
             configRepository,
@@ -87,21 +79,26 @@ class SettingsViewModelTest {
             saveDeviceConfigUseCase,
             managePinsUseCase,
             appSettingsRepository,
+            wifiInfoProvider,
             context
         )
     }
 
     @After
     fun tearDown() {
-        mockedSettingsSecure.close()
         Dispatchers.resetMain()
     }
 
     // --- deviceClientId -----------------------------------------------------------
 
     @Test
-    fun `deviceClientId is resolved from ANDROID_ID`() {
-        assertEquals(testAndroidId, viewModel.deviceClientId)
+    fun `deviceClientId is resolved from MAC address`() {
+        assertEquals(testMacAddress, viewModel.deviceClientId)
+    }
+
+    @Test
+    fun `initial brokerForm clientId defaults to MAC address`() {
+        assertEquals(testMacAddress, viewModel.brokerForm.value.clientId)
     }
 
     // --- initial form state -------------------------------------------------------
@@ -209,7 +206,7 @@ class SettingsViewModelTest {
                     port = 1883,
                     username = "",
                     password = "",
-                    clientId = testAndroidId,
+                    clientId = testMacAddress,
                     secure = false
                 )
             )
@@ -224,7 +221,27 @@ class SettingsViewModelTest {
                 port = 1883,
                 username = "",
                 password = "",
-                clientId = testAndroidId,
+                clientId = testMacAddress,
+                secure = false
+            )
+        )
+    }
+
+    @Test
+    fun `saveBrokerConfig uses custom clientId when user overrides it`() = runTest {
+        viewModel.updateClientId("my-custom-id")
+        whenever(saveBrokerConfigUseCase.invoke(any())).thenReturn(Result.success(Unit))
+
+        viewModel.saveBrokerConfig()
+        runCurrent()
+
+        verify(saveBrokerConfigUseCase).invoke(
+            BrokerConfig(
+                host = "broker.hivemq.com",
+                port = 1883,
+                username = "",
+                password = "",
+                clientId = "my-custom-id",
                 secure = false
             )
         )
@@ -385,7 +402,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `brokerForm updates when observeBrokerConfig emits a config`() = runTest {
-        val savedConfig = BrokerConfig(host = "saved.host.com", port = 8883, secure = true)
+        val savedConfig = BrokerConfig(host = "saved.host.com", port = 8883, clientId = "saved-id", secure = true)
         whenever(configRepository.observeBrokerConfig()).thenReturn(flowOf(savedConfig))
         whenever(configRepository.observeDeviceConfig()).thenReturn(flowOf(null))
 
@@ -395,6 +412,7 @@ class SettingsViewModelTest {
             saveDeviceConfigUseCase,
             managePinsUseCase,
             appSettingsRepository,
+            wifiInfoProvider,
             context
         )
         runCurrent()
@@ -402,7 +420,28 @@ class SettingsViewModelTest {
         val form = vm.brokerForm.value
         assertEquals("saved.host.com", form.host)
         assertEquals("8883", form.port)
+        assertEquals("saved-id", form.clientId)
         assertTrue(form.secure)
+    }
+
+    @Test
+    fun `brokerForm falls back to MAC address when stored clientId is blank`() = runTest {
+        val savedConfig = BrokerConfig(host = "saved.host.com", port = 1883, clientId = "", secure = false)
+        whenever(configRepository.observeBrokerConfig()).thenReturn(flowOf(savedConfig))
+        whenever(configRepository.observeDeviceConfig()).thenReturn(flowOf(null))
+
+        val vm = SettingsViewModel(
+            configRepository,
+            saveBrokerConfigUseCase,
+            saveDeviceConfigUseCase,
+            managePinsUseCase,
+            appSettingsRepository,
+            wifiInfoProvider,
+            context
+        )
+        runCurrent()
+
+        assertEquals(testMacAddress, vm.brokerForm.value.clientId)
     }
 
     @Test
@@ -418,6 +457,7 @@ class SettingsViewModelTest {
             saveDeviceConfigUseCase,
             managePinsUseCase,
             appSettingsRepository,
+            wifiInfoProvider,
             context
         )
         runCurrent()

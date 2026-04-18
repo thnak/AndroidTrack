@@ -35,6 +35,7 @@ data class BrokerConfigFormState(
     val port: String = "1883",
     val username: String = "",
     val password: String = "",
+    val clientId: String = "",
     val secure: Boolean = false
 )
 
@@ -74,12 +75,12 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext context: Context
 ) : ViewModel() {
 
-    /** Stable device identifier used as MQTT Client ID (derived from MAC address). */
+    /** Stable device identifier used as the default MQTT Client ID (derived from MAC address). */
     val deviceClientId: String = wifiInfoProvider.getMacAddress()
 
     private val appContext: Context = context
 
-    private val _brokerForm = MutableStateFlow(BrokerConfigFormState())
+    private val _brokerForm = MutableStateFlow(BrokerConfigFormState(clientId = deviceClientId))
     val brokerForm: StateFlow<BrokerConfigFormState> = _brokerForm.asStateFlow()
 
     private val _deviceForm = MutableStateFlow(DeviceConfigFormState())
@@ -110,6 +111,7 @@ class SettingsViewModel @Inject constructor(
                         port = config.port.toString(),
                         username = config.username,
                         password = config.password,
+                        clientId = config.clientId.ifBlank { deviceClientId },
                         secure = config.secure
                     )
                 }
@@ -133,6 +135,7 @@ class SettingsViewModel @Inject constructor(
     fun updateBrokerPort(value: String) = _brokerForm.update { it.copy(port = value) }
     fun updateBrokerUsername(value: String) = _brokerForm.update { it.copy(username = value) }
     fun updateBrokerPassword(value: String) = _brokerForm.update { it.copy(password = value) }
+    fun updateClientId(value: String) = _brokerForm.update { it.copy(clientId = value) }
 
     fun updateBrokerSecure(secure: Boolean) {
         _brokerForm.update { state ->
@@ -152,7 +155,7 @@ class SettingsViewModel @Inject constructor(
                     port = port,
                     username = form.username,
                     password = form.password,
-                    clientId = deviceClientId,
+                    clientId = form.clientId.ifBlank { deviceClientId },
                     secure = form.secure
                 )
             )

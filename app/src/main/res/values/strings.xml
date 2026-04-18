@@ -43,7 +43,7 @@
 
     <!-- Settings – Device -->
     <string name="section_device">Device Settings</string>
-    <string name="field_client_id">Client ID (auto)</string>
+    <string name="field_client_id">Client ID</string>
     <string name="field_device_id">Device ID</string>
     <string name="field_device_type">Device Type</string>
     <string name="btn_save_device">Save Device Settings</string>
